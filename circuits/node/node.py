@@ -149,6 +149,24 @@ class Node(BaseComponent):
         self.__peers[connection_name] = client
         return client_channel
 
+    def remove(self, connection_name):
+        """Remove a specified connection from the current node
+
+        :param connection_name:  Connection name.
+        :type connection_name:   str
+
+        :return: True if the named connection was present, False otherwise
+
+        :rtype: bool
+        """
+        if connection_name not in self.__peers:
+            return False
+        client = self.__peers[connection_name]
+        client.close()
+        del self.__peers[connection_name]
+        client.unregister()
+        return True
+
     def get_connection_names(self):
         """Get connections names
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 from circuits import BaseComponent, Debugger, handler
 
@@ -12,6 +13,6 @@ class MyComponent(BaseComponent):
 
     @handler("started", channel="*")
     def system_started(self, component):
-        print "Start event detected"
+        print("Start event detected")
 
 MyComponent().run()

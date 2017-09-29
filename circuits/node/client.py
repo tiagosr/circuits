@@ -50,7 +50,7 @@ class Client(BaseComponent):
             channel=channel
         ).register(self)
 
-        TCPClient(channel=channel, **kwargs).register(self)
+        self.__client = TCPClient(channel=channel, **kwargs).register(self)
 
     @handler("ready")
     def _on_ready(self, component):
@@ -58,11 +58,11 @@ class Client(BaseComponent):
 
     def close(self):
         """Close the connection"""
-        self.fire(close())
+        self.fire(close(), self.channel)
 
     def connect(self):
         """Create the connection"""
-        self.fire(connect(self.__host, self.__port))
+        self.fire(connect(self.__host, self.__port), self.channel)
 
     def send(self, event):
         """Send event through the connection

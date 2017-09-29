@@ -7,14 +7,19 @@ import select
 from collections import defaultdict, deque
 from errno import (
     EAGAIN, EALREADY, EBADF, ECONNABORTED, EINPROGRESS, EINTR, EINVAL, EISCONN,
-    EMFILE, ENFILE, ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EWOULDBLOCK,
+    EMFILE, ENFILE, ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EWOULDBLOCK, WSAECONNRESET
 )
 from socket import (
-    AF_INET, AF_INET6, AF_UNIX, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST,
+    AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST,
     SO_REUSEADDR, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, TCP_NODELAY,
     error as SocketError, gaierror, getaddrinfo, getfqdn, gethostbyname,
-    gethostname, socket,
+    gethostname, socket, MSG_PEEK
 )
+try:
+    from socket import AF_UNIX
+except:
+    AF_UNIX = 1 # this is so that windows stops complaining
+
 from time import time
 
 from _socket import socket as SocketType
@@ -264,6 +269,13 @@ class TCPClient(Client):
     def init(self, connect_timeout=5, *args, **kwargs):
         self.connect_timeout = connect_timeout
 
+    @handler("error")
+    def on_error(self, error):
+        # This happens if the remote forcibly closes the connection.
+        # Socket becomes invalid and should be recreated.
+        if error.errno == WSAECONNRESET:
+            self._sock = None
+
     @handler("connect")  # noqa
     def connect(self, host, port, secure=False, **kwargs):
         # XXX: C901: This has a high McCacbe complexity score of 10.
@@ -277,6 +289,9 @@ class TCPClient(Client):
             self.certfile = kwargs.get("certfile", None)
             self.keyfile = kwargs.get("keyfile", None)
             self.ca_certs = kwargs.get("ca_certs", None)
+
+        if not self._sock:
+            self._sock = self._create_socket()
 
         try:
             r = self._sock.connect((host, port))
@@ -296,7 +311,10 @@ class TCPClient(Client):
         stop_time = time() + self.connect_timeout
         while time() < stop_time:
             try:
-                self._sock.getpeername()
+                # try and receive anything:
+                # if it is connected, it won't throw any exceptions,
+                # even when there's no data waiting yet
+                self._sock.recv(1, MSG_PEEK)
                 self._connected = True
                 break
             except Exception as e:
