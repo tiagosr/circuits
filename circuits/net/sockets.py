@@ -7,10 +7,11 @@ import select
 from collections import defaultdict, deque
 from errno import (
     EAGAIN, EALREADY, EBADF, ECONNABORTED, EINPROGRESS, EINTR, EINVAL, EISCONN,
-    EMFILE, ENFILE, ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EWOULDBLOCK, WSAECONNRESET
+    EMFILE, ENFILE, ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EWOULDBLOCK, ECONNRESET,
+    ECONNREFUSED
 )
 from socket import (
-    AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST,
+    AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST, SO_ERROR,
     SO_REUSEADDR, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, TCP_NODELAY,
     error as SocketError, gaierror, getaddrinfo, getfqdn, gethostbyname,
     gethostname, socket, MSG_PEEK
@@ -273,7 +274,7 @@ class TCPClient(Client):
     def on_error(self, error):
         # This happens if the remote forcibly closes the connection.
         # Socket becomes invalid and should be recreated.
-        if error.errno == WSAECONNRESET:
+        if error.errno == ECONNRESET:
             self._sock = None
 
     @handler("connect")  # noqa
@@ -311,13 +312,18 @@ class TCPClient(Client):
         stop_time = time() + self.connect_timeout
         while time() < stop_time:
             try:
+                # check for errors:
+                # if the connection is still possible but the state
+                # is not known, 0 is returned here, and a new check is performed
+                if self._sock.getsockopt(SOL_SOCKET, SO_ERROR) in (ECONNREFUSED, ECONNABORTED):
+                    break
                 # try and receive anything:
                 # if it is connected, it won't throw any exceptions,
                 # even when there's no data waiting yet
                 self._sock.recv(1, MSG_PEEK)
                 self._connected = True
                 break
-            except Exception as e:
+            except SocketError as e:
                 yield
 
         if not self._connected:

@@ -95,7 +95,8 @@ class FallBackExceptionHandler(BaseComponent):
         s.extend(traceback)
         s.extend(format_exception_only(error_type, value))
         s.append("\n")
-        stderr.write("".join(s))
+        if stderr:
+            stderr.write("".join(s))
 
 
 class FallBackSignalHandler(BaseComponent):

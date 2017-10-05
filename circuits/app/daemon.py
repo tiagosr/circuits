@@ -82,11 +82,12 @@ class Daemon(Component):
                 # exit first parent
                 _exit(0)
         except OSError as e:
-            stderr.write(
-                "fork #1 failed: {0:d} ({1:s})\n".format(
-                    e.errno, str(e)
+            if stderr:
+                stderr.write(
+                    "fork #1 failed: {0:d} ({1:s})\n".format(
+                        e.errno, str(e)
+                    )
                 )
-            )
 
             raise SystemExit(1)
 

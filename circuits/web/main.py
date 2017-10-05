@@ -145,17 +145,19 @@ class Root(Controller):
 def select_poller(poller):
     if poller == "poll":
         if Poll is None:
-            stderr.write(
-                "No poll support available - defaulting to Select..."
-            )
+            if stderr:
+                stderr.write(
+                    "No poll support available - defaulting to Select..."
+                )
             Poller = Select
         else:
             Poller = Poll
     elif poller == "epoll":
         if EPoll is None:
-            stderr.write(
-                "No epoll support available - defaulting to Select..."
-            )
+            if stderr:
+                stderr.write(
+                    "No epoll support available - defaulting to Select..."
+                )
             Poller = Select
         else:
             Poller = EPoll

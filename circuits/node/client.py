@@ -42,6 +42,7 @@ class Client(BaseComponent):
         """
         super(Client, self).__init__(channel=channel, **kwargs)
 
+        self.related_handlers = []
         self.__host = host
         self.__port = port
         self.__protocol = Protocol(

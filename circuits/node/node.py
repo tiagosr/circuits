@@ -125,7 +125,7 @@ class Node(BaseComponent):
             self.fire(connected_to(
                 connection_name, hostname, port, client_channel, client
             ))
-        self.addHandler(connected)
+        client.related_handlers.append(self.addHandler(connected))
 
         # disconnected event binding
         @handler('disconnected', 'unreachable', channel=client_channel)
@@ -143,8 +143,7 @@ class Node(BaseComponent):
                     client_channel
                 ).register(self)
 
-        self.addHandler(disconnected)
-
+        client.related_handlers.append(self.addHandler(disconnected))
         client.register(self)
         self.__peers[connection_name] = client
         return client_channel
@@ -162,6 +161,9 @@ class Node(BaseComponent):
         if connection_name not in self.__peers:
             return False
         client = self.__peers[connection_name]
+        for handler in client.related_handlers:
+            self.removeHandler(handler)
+
         client.close()
         del self.__peers[connection_name]
         client.unregister()
