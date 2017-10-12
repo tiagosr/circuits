@@ -12,14 +12,26 @@ from errno import (
 )
 from socket import (
     AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST, SO_ERROR,
-    SO_REUSEADDR, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, TCP_NODELAY,
+    SO_REUSEADDR, SO_KEEPALIVE, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, TCP_NODELAY,
     error as SocketError, gaierror, getaddrinfo, getfqdn, gethostbyname,
     gethostname, socket, MSG_PEEK
 )
 try:
-    from socket import AF_UNIX
+    from socket import AF_UNIX, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_KEEPCNT
+
+    def _set_socket_keepalive(sock, idle_timer, keepalive_interval, keepalive_count):
+        sock.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
+        sock.setsockopt(IPPROTO_TCP, TCP_KEEPIDLE, idle_timer)
+        sock.setsockopt(IPPROTO_TCP, TCP_KEEPINTVL, keepalive_interval)
+        sock.setsockopt(IPPROTO_TCP, TCP_KEEPCNT, keepalive_count)
+
+
 except:
     AF_UNIX = 1 # this is so that windows stops complaining
+    from socket import SIO_KEEPALIVE_VALS
+    def _set_socket_keepalive(sock, idle_timer, keepalive_interval, keepalive_count):
+        sock.ioctl(SIO_KEEPALIVE_VALS, (1, int(idle_timer), int(keepalive_interval)))
+
 
 from time import time
 
@@ -293,12 +305,14 @@ class TCPClient(Client):
 
         if not self._sock:
             self._sock = self._create_socket()
-
+            _set_socket_keepalive(self._sock, self.connect_timeout/3, min(self.connect_timeout/5, 1), 3)
         try:
             r = self._sock.connect((host, port))
+
         except SocketError as e:
             if e.args[0] in (EBADF, EINVAL,):
                 self._sock = self._create_socket()
+                _set_socket_keepalive(self._sock, self.connect_timeout/3, min(self.connect_timeout/5, 1), 3)
                 r = self._sock.connect_ex((host, port))
             else:
                 r = e.args[0]
@@ -310,17 +324,10 @@ class TCPClient(Client):
                 raise StopIteration()
 
         stop_time = time() + self.connect_timeout
+
         while time() < stop_time:
             try:
-                # check for errors:
-                # if the connection is still possible but the state
-                # is not known, 0 is returned here, and a new check is performed
-                if self._sock.getsockopt(SOL_SOCKET, SO_ERROR) in (ECONNREFUSED, ECONNABORTED):
-                    break
-                # try and receive anything:
-                # if it is connected, it won't throw any exceptions,
-                # even when there's no data waiting yet
-                self._sock.recv(1, MSG_PEEK)
+                self._sock.getpeername()
                 self._connected = True
                 break
             except SocketError as e:
