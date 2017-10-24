@@ -8,11 +8,12 @@ DELIMITER = b'~~~'
 
 
 class Protocol(Component):
-    __buffer = b''
-    __nid = 0
-    __events = {}
-
-    def init(self, sock=None, server=None, **kwargs):
+    
+    def __init__(self, sock=None, server=None, **kwargs):
+        super(Protocol, self).__init__(sock, server, **kwargs);
+        self.__nid = 0
+        self.__events = {}
+        self.__buffer = b''
         self.__server = server
         self.__sock = sock
         self.__receive_event_firewall = kwargs.get('receive_event_firewall',
@@ -46,18 +47,18 @@ class Protocol(Component):
             yield Value(event, self)
 
         else:
-            id = self.__nid
+            nid = self.__nid
             self.__nid += 1
 
-            packet = dump_event(event, id).encode('utf-8') + DELIMITER
+            packet = dump_event(event, nid).encode('utf-8') + DELIMITER
             self.__send(packet)
 
             if not getattr(event, 'node_without_result', False):
-                self.__events[id] = event
-                while not hasattr(self.__events[id], 'remote_finish'):
+                self.__events[nid] = event
+                while not hasattr(self.__events[nid], 'remote_finish'):
                     yield
 
-                del (self.__events[id])
+                del (self.__events[nid])
                 yield event.value
 
     def send_result(self, id, value):

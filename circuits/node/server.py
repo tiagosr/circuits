@@ -9,8 +9,7 @@ class Server(BaseComponent):
     """Node server."""
 
     channel = 'node'
-    __protocols = {}
-
+    
     def __init__(self, port, server_ip='0.0.0.0', channel=channel,
                  receive_event_firewall=None, send_event_firewall=None,
                  **kwargs):
@@ -43,7 +42,7 @@ class Server(BaseComponent):
         :type send_event_firewall:   method
         """
         super(Server, self).__init__(channel=channel, **kwargs)
-
+        self.__protocols = {}
         bind = (server_ip, port)
         self.server = TCPServer(bind, channel=self.channel, **kwargs)
         self.server.register(self)

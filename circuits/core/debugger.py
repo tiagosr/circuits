@@ -48,8 +48,11 @@ class Debugger(BaseComponent):
         self.prefix = prefix
         self.trim = trim
 
-        self.IgnoreEvents.extend(kwargs.get("IgnoreEvents", []))
-        self.IgnoreChannels.extend(kwargs.get("IgnoreChannels", []))
+        # turn these class variables into instance variables,
+        # adding the kwargs values we get
+        # (they can sense as subclass-specializable defaults)
+        self.IgnoreEvents = self.IgnoreEvents + kwargs.get("IgnoreEvents", [])
+        self.IgnoreChannels = self.IgnoreChannels + kwargs.get("IgnoreChannels", [])
 
     @handler("signal", channel="*")
     def _on_signal(self, signo, stack):
